@@ -138,7 +138,7 @@ export class ImageTransformer {
    */
   async toURL(): Promise<string> {
     const response = await this.httpClient.post<{ url: string }>(
-      `/image/${this.fileId}/transform-url`,
+      `/file/${this.fileId}/transform-url`,
       this.options
     );
 
