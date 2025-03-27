@@ -3,11 +3,10 @@ import { ImageFormat, ImageFit, TransformOptions } from "../types/image";
 
 export class ImageTransformer {
   private options: TransformOptions = {};
-  private baseUrl: string;
+  private fileId: string;
 
-  constructor(private fileId: string, private httpClient: HttpClient) {
-    // We'll build the base URL later when toURL is called
-    this.baseUrl = `/image/${fileId}`;
+  constructor(fileId: string, private httpClient: HttpClient) {
+    this.fileId = fileId;
   }
 
   /**
@@ -134,32 +133,36 @@ export class ImageTransformer {
   }
 
   /**
-   * Generate the transformation URL
+   * Generate the transformation URL by sending the options to the server
+   * @returns Promise resolving to the transformation URL
    */
-  toURL(): string {
-    // Convert options to URL parameters
-    const params = new URLSearchParams();
+  async toURL(): Promise<string> {
+    const response = await this.httpClient.post<{ url: string }>(
+      `/image/${this.fileId}/transform-url`,
+      this.options
+    );
 
-    Object.entries(this.options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        params.append(key, value.toString());
-      }
-    });
-
-    const queryString = params.toString();
-    return queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
+    return response.data.url;
   }
 
   /**
    * Execute the transformation and get the transformed image data
    */
   async transform(): Promise<Blob> {
-    const url = this.toURL();
-    const response = await this.httpClient.get<Blob>(url, {
+    const transformedUrl = await this.toURL();
+
+    const response = await fetch(transformedUrl, {
       headers: {
         Accept: "image/*",
       },
     });
-    return response.data;
+
+    if (!response.ok) {
+      throw new Error(
+        `Image transformation failed: ${response.status} ${response.statusText}`
+      );
+    }
+
+    return await response.blob();
   }
 }

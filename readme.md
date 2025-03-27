@@ -114,6 +114,119 @@ const extensions = client.files.getAllowedExtensions();
 const isAllowed = client.files.isAllowedMimeType("image/jpeg");
 ```
 
+### Image Transformations
+
+The SDK provides a fluent interface for transforming images. You can chain multiple transformations together and then either get a URL for the transformed image or download the transformed image directly.
+
+#### Get a Transformed Image URL
+
+```javascript
+// Generate a URL for the transformed image
+const imageUrl = await client.images
+  .transform("image-id")
+  .resize(800, 600)
+  .grayscale()
+  .quality(90)
+  .toURL();
+
+```
+
+#### Available Transformations
+
+The SDK supports the following image transformations:
+
+**Resize**
+```javascript
+// Resize to specific dimensions (width, height, fit)
+// Fit options: "cover", "contain", "fill", "inside", "outside"
+.resize(800, 600, "cover")
+
+// Resize to width only
+.resize(800)
+
+// Resize to height only
+.resize(undefined, 600)
+```
+
+**Quality**
+```javascript
+// Set quality (1-100)
+.quality(90)
+```
+
+**Blur**
+```javascript
+// Apply Gaussian blur (0.3-1000)
+.blur(5)
+```
+
+**Sharpening**
+```javascript
+// Apply image sharpening
+.sharpen()
+```
+
+**Grayscale**
+```javascript
+// Convert to grayscale
+.grayscale()
+```
+
+**Rotation**
+```javascript
+// Rotate image by degrees (-360 to 360)
+.rotate(90)
+```
+
+**Border**
+```javascript
+// Add a border (width in pixels, color in hex)
+.border(5, "FF0000")  // 5px red border
+```
+
+**Crop**
+```javascript
+// Crop image (x, y, width, height)
+.crop(100, 100, 500, 500)
+```
+
+**Format Conversion**
+```javascript
+// Convert to a specific format
+.format("webp")  // Options: "jpeg", "png", "webp", "avif", etc.
+```
+
+#### Example: Multiple Transformations
+
+```javascript
+// Chain multiple transformations
+const imageUrl = await client.images
+  .transform("image-id")
+  .resize(800, 600)
+  .quality(90)
+  .grayscale()
+  .blur(2)
+  .format("webp")
+  .toURL();
+```
+
+#### Advanced: Get the Transformed Image as a Blob
+
+In some cases, you might need the actual image data rather than just a URL. For these scenarios, use the `transform()` method:
+
+```javascript
+// Get the transformed image as a Blob
+const imageBlob = await client.images
+  .transform("image-id")
+  .resize(800, 600)
+  .grayscale()
+  .transform();
+
+// Example: Create an object URL from the blob
+const objectUrl = URL.createObjectURL(imageBlob);
+
+```
+
 ## Error Handling
 
 The SDK uses custom error classes for better error handling:
