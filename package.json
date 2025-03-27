@@ -1,5 +1,9 @@
 {
   "name": "@getpronto-io/getpronto-sdk",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": "github:getpronto-io/getpronto-sdk",
   "version": "1.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
