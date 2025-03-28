@@ -30,7 +30,6 @@ The SDK supports multiple file input types:
 **1. Using a local file path**
 
 ```javascript
-// Node.js environment
 const result = await client.files.upload("./path/to/file.jpg");
 ```
 
