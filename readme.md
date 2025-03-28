@@ -56,6 +56,14 @@ const dataUrl = "data:text/plain;base64,SGVsbG8gV29ybGQ=";
 const result = await client.files.upload(dataUrl);
 ```
 
+**4. Using a File object**
+
+```javascript
+const file = new File(["hello"], "hello.txt");
+const result = await client.files.upload(file);
+```
+
+
 #### Custom Filename and MIME Type
 
 You can specify a custom filename and MIME type with any upload method:
