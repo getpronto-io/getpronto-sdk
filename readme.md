@@ -27,29 +27,20 @@ const client = new GetProntoClient({
 
 The SDK supports multiple file input types:
 
-**1. Using a File object**
-
-```javascript
-// Browser environment
-const fileInput = document.querySelector('input[type="file"]');
-const file = fileInput.files[0];
-const result = await client.files.upload(file);
-```
-
-**2. Using a local file path** (Node.js only)
+**1. Using a local file path**
 
 ```javascript
 // Node.js environment
 const result = await client.files.upload("./path/to/file.jpg");
 ```
 
-**3. Using a remote URL**
+**2. Using a remote URL**
 
 ```javascript
 const result = await client.files.upload("https://example.com/image.jpg");
 ```
 
-**4. Using a Buffer** (Node.js)
+**3. Using a Buffer**
 
 ```javascript
 const buffer = Buffer.from("Hello World");
@@ -59,7 +50,7 @@ const result = await client.files.upload(buffer, {
 });
 ```
 
-**5. Using a Data URL**
+**4. Using a Data URL**
 
 ```javascript
 const dataUrl = "data:text/plain;base64,SGVsbG8gV29ybGQ=";
