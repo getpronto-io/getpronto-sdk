@@ -244,6 +244,22 @@ try {
 }
 ```
 
+## Publishing
+
+Publish to NPM:
+- `npm login`
+- Change package.json `name` field to `getpronto-sdk` 
+```bash
+npm publish --registry https://registry.npmjs.org/               
+```
+
+Publish to GitHub:
+- `npm login --registry=https://npm.pkg.github.com`
+- Change package.json `name` field to `@getpronto-io/getpronto-sdk`
+```bash
+npm publish --registry https://npm.pkg.github.com               
+```
+
 ## License
 
 MIT
