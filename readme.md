@@ -247,7 +247,7 @@ try {
 ## Publishing
 
 Publish to NPM:
-- `npm login`
+- `npm login --registry https://registry.npmjs.org`
 - Change package.json `name` field to `getpronto-sdk` 
 ```bash
 npm publish --registry https://registry.npmjs.org/               
