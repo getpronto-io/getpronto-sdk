@@ -1,9 +1,10 @@
 {
-  "name": "@getpronto-io/getpronto-sdk",
+  "name": "getpronto-sdk",
+  "homepage": "https://www.getpronto.io",
+  "repository": "github:getpronto-io/getpronto-sdk",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "repository": "github:getpronto-io/getpronto-sdk",
   "version": "1.0.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
