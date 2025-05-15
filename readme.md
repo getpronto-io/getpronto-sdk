@@ -2,6 +2,8 @@
 
 A JavaScript/TypeScript SDK for the GetPronto API. This SDK allows you to manage files and images on the GetPronto platform.
 
+Full documentation can be found in [our docs area](https://www.getpronto.io/docs).
+
 ## Installation
 
 ```bash
