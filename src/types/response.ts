@@ -5,7 +5,7 @@ export interface APIResponse<T> {
 }
 
 export interface PaginatedResponse<T> {
-  items: T[];
+  files: T[];
   pagination: {
     page: number;
     pageSize: number;
