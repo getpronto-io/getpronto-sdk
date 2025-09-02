@@ -7,7 +7,7 @@ Full documentation can be found in [our docs area](https://www.getpronto.io/docs
 ## Installation
 
 ```bash
-npm install @getpronto-io/getpronto-sdk
+npm install getpronto-sdk
 ```
 
 ## Usage
@@ -15,7 +15,7 @@ npm install @getpronto-io/getpronto-sdk
 ### Initializing the Client
 
 ```javascript
-import GetProntoClient from "@getpronto-io/getpronto-sdk";
+import GetProntoClient from "getpronto-sdk";
 
 const client = new GetProntoClient({
   apiKey: "YOUR_API_KEY",
