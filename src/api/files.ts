@@ -9,7 +9,7 @@ export class FileAPI {
   private allowedFileTypes;
 
   constructor(private httpClient: HttpClient) {
-    this.allowedFileTypes = config.uploads.allowedFileTypes;
+    this.allowedFileTypes = config.uploads.mimeToExtensions;
   }
 
   async upload(
@@ -264,9 +264,8 @@ export class FileAPI {
    * Gets file extension from MIME type
    */
   private getExtensionFromMimeType(mimeType: string): string {
-    const extensions = this.allowedFileTypes[mimeType];
+    const extensions = (this.allowedFileTypes as any)[mimeType];
     if (extensions && extensions.length > 0) {
-      // Return the first extension without the dot
       const ext = extensions[0];
       return ext.startsWith(".") ? ext.substring(1) : ext;
     }
@@ -308,7 +307,7 @@ export class FileAPI {
       return "application/octet-stream"; // No extension found
     }
 
-    const extension = filename.slice(lastDotIndex).toLowerCase();
+    const extension = filename.slice(lastDotIndex).toLowerCase() as any;
 
     // Search through the allowed file types to find matching extension
     for (const [mimeType, extensions] of Object.entries(

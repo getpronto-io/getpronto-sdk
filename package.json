@@ -2,17 +2,14 @@
   "name": "getpronto-sdk",
   "homepage": "https://www.getpronto.io",
   "repository": "github:getpronto-io/getpronto-sdk",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "test": "jest",
     "prepare": "npm run build"
   },
@@ -20,11 +17,10 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@jaygould/shared-config-getpronto": "^1.0.18",
     "@types/node": "^22.13.13",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.8.2"
-  },
-  "dependencies": {
-    "@jaygould/shared-config-getpronto": "^1.0.2"
   }
 }
