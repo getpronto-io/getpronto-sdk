@@ -14,7 +14,7 @@ export class FileAPI {
 
   async upload(
     file: File | Buffer | string,
-    options?: { filename?: string; mimeType?: string }
+    options?: { filename?: string; mimeType?: string; folder?: string }
   ): Promise<APIResponse<FileMetadata>> {
     const resolved = await this.resolveFile(file, options);
     const customFilename =
@@ -30,6 +30,7 @@ export class FileAPI {
         mimetype: resolved.mimeType,
         size: resolved.size,
         ...(customFilename && { customFilename }),
+        ...(options?.folder && { folderName: options.folder }),
       }
     );
 
@@ -230,11 +231,14 @@ export class FileAPI {
   async list(options?: {
     page?: number;
     pageSize?: number;
+    folder?: string;
   }): Promise<APIResponse<PaginatedResponse<FileMetadata>>> {
     const params = new URLSearchParams();
     if (options?.page) params.append("page", options.page.toString());
     if (options?.pageSize)
       params.append("pageSize", options.pageSize.toString());
+    if (options?.folder)
+      params.append("folderName", options.folder);
 
     return this.httpClient.get<PaginatedResponse<FileMetadata>>(
       `/files?${params}`

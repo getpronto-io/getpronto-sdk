@@ -23,4 +23,5 @@ export interface FileMetadata {
   rawSize: number;
   updated: string;
   rawUpdated: string;
+  folderId: string | null;
 }
