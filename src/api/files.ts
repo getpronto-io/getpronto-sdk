@@ -1,5 +1,5 @@
 import { HttpClient } from "../core/http-client";
-import { FileMetadata } from "../types/file";
+import { FileMetadata, ResolvedFile, PresignResponse } from "../types/file";
 import { APIResponse, PaginatedResponse } from "../types/response";
 import { createConfig } from "@jaygould/shared-config-getpronto";
 
@@ -16,100 +16,108 @@ export class FileAPI {
     file: File | Buffer | string,
     options?: { filename?: string; mimeType?: string }
   ): Promise<APIResponse<FileMetadata>> {
-    const formData = new FormData();
+    const resolved = await this.resolveFile(file, options);
+    const customFilename =
+      options?.filename && !(file instanceof File)
+        ? options.filename
+        : undefined;
 
-    if (file instanceof File) {
-      this.handleFileObject(file, formData, options);
-    } else if (Buffer.isBuffer(file)) {
-      this.handleBufferObject(file, formData, options);
-    } else if (typeof file === "string") {
-      await this.handleStringInput(file, formData, options);
-    } else {
-      throw new Error("Unsupported file type for upload");
+    // Phase 1: Get presigned URL
+    const presignRes = await this.httpClient.post<PresignResponse>(
+      "/upload/presign",
+      {
+        filename: resolved.filename,
+        mimetype: resolved.mimeType,
+        size: resolved.size,
+        ...(customFilename && { customFilename }),
+      }
+    );
+
+    const { uploadUrl, pendingUploadId } = presignRes.data;
+
+    // Phase 2: Upload directly to B2
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": resolved.mimeType,
+      },
+      body: resolved.body,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(
+        `Direct upload failed with status ${uploadResponse.status}`
+      );
     }
 
-    if (options?.filename && !(file instanceof File)) {
-      formData.append("customFilename", options.filename);
-    }
+    // Phase 3: Confirm upload
+    const response = await this.httpClient.post<{ message: string; file: FileMetadata }>("/upload/confirm", {
+      pendingUploadId,
+    });
 
-    return this.httpClient.post<FileMetadata>("/upload", formData);
+    return { ...response, data: response.data.file };
   }
 
-  /**
-   * Handle File object input
-   */
-  private handleFileObject(
-    file: File,
-    formData: FormData,
+  private async resolveFile(
+    file: File | Buffer | string,
     options?: { filename?: string; mimeType?: string }
-  ): void {
-    // Get filename from options or use original filename
-    const filename = options?.filename || file.name;
+  ): Promise<ResolvedFile> {
+    if (file instanceof File) {
+      return this.resolveFileObject(file, options);
+    } else if (Buffer.isBuffer(file)) {
+      return this.resolveBufferObject(file, options);
+    } else if (typeof file === "string") {
+      return this.resolveStringInput(file, options);
+    }
+    throw new Error("Unsupported file type for upload");
+  }
 
-    // Get MIME type from options, or use original if valid, or infer from filename
+  private resolveFileObject(
+    file: File,
+    options?: { filename?: string; mimeType?: string }
+  ): ResolvedFile {
+    const filename = options?.filename || file.name;
     let mimeType = options?.mimeType || file.type;
     if (mimeType === "application/octet-stream" || !mimeType) {
       mimeType = this.getMimeTypeFromFilename(filename);
     }
 
-    // Only create a new File if something changed
-    if (filename !== file.name || mimeType !== file.type) {
-      const newFile = new File([file], filename, { type: mimeType });
-      formData.append("file", newFile);
-    } else {
-      formData.append("file", file);
-    }
-  }
-  /**
-   * Handle Buffer object input
-   */
-  private handleBufferObject(
-    buffer: Buffer,
-    formData: FormData,
-    options?: { filename?: string; mimeType?: string }
-  ): void {
-    // For Buffer, we need to determine the MIME type
-    const filename = options?.filename || "file";
+    const body =
+      filename !== file.name || mimeType !== file.type
+        ? new File([file], filename, { type: mimeType })
+        : file;
 
-    // Use provided MIME type or try to infer it from filename
+    return { body, filename, mimeType, size: file.size };
+  }
+
+  private resolveBufferObject(
+    buffer: Buffer,
+    options?: { filename?: string; mimeType?: string }
+  ): ResolvedFile {
+    const filename = options?.filename || "file";
     const mimeType =
       options?.mimeType || this.getMimeTypeFromFilename(filename);
 
-    // Create a File object with the correct MIME type
-    const fileObj = new File([buffer], filename, { type: mimeType });
-    formData.append("file", fileObj);
+    return { body: buffer, filename, mimeType, size: buffer.length };
   }
 
-  /**
-   * Handle string input (data URL, local file path, or remote URL)
-   */
-  private async handleStringInput(
+  private async resolveStringInput(
     input: string,
-    formData: FormData,
     options?: { filename?: string; mimeType?: string }
-  ): Promise<void> {
-    // Handle data URLs (base64 encoded data)
+  ): Promise<ResolvedFile> {
     if (input.startsWith("data:")) {
-      this.handleDataUrl(input, formData, options);
-    }
-    // Handle remote URLs (http/https)
-    else if (input.startsWith("http://") || input.startsWith("https://")) {
-      await this.handleRemoteUrl(input, formData, options);
-    }
-    // Handle as local file path
-    else {
-      this.handleLocalFilePath(input, formData, options);
+      return this.resolveDataUrl(input, options);
+    } else if (input.startsWith("http://") || input.startsWith("https://")) {
+      return this.resolveRemoteUrl(input, options);
+    } else {
+      return this.resolveLocalFilePath(input, options);
     }
   }
 
-  /**
-   * Handle data URL input
-   */
-  private handleDataUrl(
+  private resolveDataUrl(
     dataUrl: string,
-    formData: FormData,
     options?: { filename?: string; mimeType?: string }
-  ): void {
+  ): ResolvedFile {
     const matches = dataUrl.match(
       /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/
     );
@@ -130,134 +138,81 @@ export class FileAPI {
     const filename =
       options?.filename || `file.${this.getExtensionFromMimeType(mimeType)}`;
     const blob = new Blob([bytes], { type: mimeType });
-    const fileObj = new File([blob], filename, { type: mimeType });
 
-    formData.append("file", fileObj);
+    return { body: blob, filename, mimeType, size: bytes.length };
   }
 
-  /**
-   * Handle remote URL input
-   */
-  private async handleRemoteUrl(
+  private async resolveRemoteUrl(
     url: string,
-    formData: FormData,
     options?: { filename?: string; mimeType?: string }
-  ): Promise<void> {
-    try {
-      // Fetch the remote file
-      const response = await fetch(url);
+  ): Promise<ResolvedFile> {
+    const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch remote file: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch remote file: ${response.statusText}`);
+    }
+
+    let filename = options?.filename;
+
+    if (!filename) {
+      const contentDisposition = response.headers.get("content-disposition");
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
       }
-
-      // Get the filename from Content-Disposition header or from URL
-      let filename = options?.filename;
 
       if (!filename) {
-        // Try to get filename from Content-Disposition header
-        const contentDisposition = response.headers.get("content-disposition");
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
-          }
+        const urlParts = url.split("/");
+        let urlFilename = urlParts[urlParts.length - 1];
+
+        const queryIndex = urlFilename.indexOf("?");
+        if (queryIndex !== -1) {
+          urlFilename = urlFilename.substring(0, queryIndex);
         }
 
-        // If still no filename, extract it from URL
-        if (!filename) {
-          const urlParts = url.split("/");
-          let urlFilename = urlParts[urlParts.length - 1];
-
-          // Remove query parameters if present
-          const queryIndex = urlFilename.indexOf("?");
-          if (queryIndex !== -1) {
-            urlFilename = urlFilename.substring(0, queryIndex);
-          }
-
-          filename = urlFilename || "download";
-        }
+        filename = urlFilename || "download";
       }
-
-      // Get MIME type from Content-Type header, options, or filename
-      let mimeType = options?.mimeType;
-
-      if (!mimeType) {
-        const contentType = response.headers.get("content-type");
-        if (contentType) {
-          // Remove charset and other parameters if present
-          mimeType = contentType.split(";")[0].trim();
-        }
-
-        // If still no MIME type or it's octet-stream, try to infer from filename
-        if (!mimeType || mimeType === "application/octet-stream") {
-          mimeType = this.getMimeTypeFromFilename(filename);
-        }
-      }
-
-      // Convert the response to a blob
-      const blob = await response.blob();
-
-      // Create a File object with the determined MIME type
-      const fileObj = new File([blob], filename, { type: mimeType });
-      formData.append("file", fileObj);
-    } catch (error: any) {
-      throw new Error(`Failed to process remote URL: ${error.message}`);
     }
+
+    let mimeType = options?.mimeType;
+
+    if (!mimeType) {
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        mimeType = contentType.split(";")[0].trim();
+      }
+
+      if (!mimeType || mimeType === "application/octet-stream") {
+        mimeType = this.getMimeTypeFromFilename(filename);
+      }
+    }
+
+    const blob = await response.blob();
+
+    return { body: blob, filename, mimeType, size: blob.size };
   }
 
-  /**
-   * Handle local file path input
-   */
-  private handleLocalFilePath(
+  private resolveLocalFilePath(
     filePath: string,
-    formData: FormData,
     options?: { filename?: string; mimeType?: string }
-  ): void {
-    // Extract just the filename from the path
+  ): ResolvedFile {
     const pathParts = filePath.split(/[\/\\]/);
     const filename = options?.filename || pathParts[pathParts.length - 1];
-
-    // Determine the MIME type based on the filename
     const mimeType =
       options?.mimeType || this.getMimeTypeFromFilename(filename);
 
-    // In browser environments, we can't directly access the file system
     if (typeof window !== "undefined") {
       throw new Error(
         "File path access is not supported in browser environments"
       );
-    } else {
-      // For Node.js environments
-      try {
-        // This will only work in Node.js environments
-        const fs = require("fs");
-
-        // Read the file
-        const fileData = fs.readFileSync(filePath);
-
-        // Convert Buffer to a File object
-        // Note: In Node.js 18+, File is available globally
-        if (typeof File !== "undefined") {
-          const fileObj = new File([fileData], filename, { type: mimeType });
-          formData.append("file", fileObj);
-        } else {
-          // For Node.js environments without File constructor
-          const nodeStream = require("stream");
-          const { Readable } = nodeStream;
-
-          // Create a readable stream from buffer
-          const stream = new Readable();
-          stream.push(fileData);
-          stream.push(null); // End of stream
-
-          // Use stream as file (works with form-data package)
-          formData.append("file", stream, filename);
-        }
-      } catch (err: any) {
-        throw new Error(`Failed to read file from path: ${err.message}`);
-      }
     }
+
+    const fs = require("fs");
+    const fileData: Buffer = fs.readFileSync(filePath);
+
+    return { body: fileData, filename, mimeType, size: fileData.length };
   }
 
   /**
@@ -287,7 +242,8 @@ export class FileAPI {
   }
 
   async get(id: string): Promise<APIResponse<FileMetadata>> {
-    return this.httpClient.get<FileMetadata>(`/files/${id}`);
+    const response = await this.httpClient.get<{ file: FileMetadata }>(`/files/${id}`);
+    return { ...response, data: response.data.file };
   }
 
   async delete(id: string): Promise<APIResponse<void>> {

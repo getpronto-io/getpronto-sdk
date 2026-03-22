@@ -1,3 +1,16 @@
+export interface ResolvedFile {
+  body: Blob | Buffer;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface PresignResponse {
+  uploadUrl: string;
+  pendingUploadId: string;
+  expiresIn: number;
+}
+
 export interface FileMetadata {
   id: string;
   name: string;
