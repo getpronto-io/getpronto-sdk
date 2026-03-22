@@ -1,5 +1,6 @@
 import { ClientConfig } from "../types/config";
 import { APIResponse } from "../types/response";
+import { SDK_VERSION } from "./version";
 
 /**
  * Custom error class for API errors that includes detailed information
@@ -29,6 +30,8 @@ export class HttpClient {
     this.defaultHeaders = {
       Authorization: `ApiKey ${config.apiKey}`,
       "Content-Type": "application/json",
+      "X-Pronto-SDK-Version": SDK_VERSION,
+      "X-Pronto-Upload-Source": "sdk",
       ...config.headers,
     };
   }
