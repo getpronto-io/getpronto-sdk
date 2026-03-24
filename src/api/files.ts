@@ -1,4 +1,5 @@
 import { HttpClient } from "../core/http-client";
+import { ApiKeyType } from "../core/getpronto-client";
 import { FileMetadata, ResolvedFile, PresignResponse } from "../types/file";
 import { APIResponse, PaginatedResponse } from "../types/response";
 import { createConfig } from "@jaygould/shared-config-getpronto";
@@ -7,9 +8,19 @@ const config = createConfig("", "", null);
 
 export class FileAPI {
   private allowedFileTypes;
+  private keyType: ApiKeyType;
 
-  constructor(private httpClient: HttpClient) {
+  constructor(private httpClient: HttpClient, keyType: ApiKeyType) {
     this.allowedFileTypes = config.uploads.mimeToExtensions;
+    this.keyType = keyType;
+  }
+
+  private requireSecretKey(method: string): void {
+    if (this.keyType === "public") {
+      throw new Error(
+        `files.${method}() requires a secret API key. Public keys can only upload files.`
+      );
+    }
   }
 
   async upload(
@@ -233,6 +244,7 @@ export class FileAPI {
     pageSize?: number;
     folder?: string;
   }): Promise<APIResponse<PaginatedResponse<FileMetadata>>> {
+    this.requireSecretKey("list");
     const params = new URLSearchParams();
     if (options?.page) params.append("page", options.page.toString());
     if (options?.pageSize)
@@ -246,11 +258,13 @@ export class FileAPI {
   }
 
   async get(id: string): Promise<APIResponse<FileMetadata>> {
+    this.requireSecretKey("get");
     const response = await this.httpClient.get<{ file: FileMetadata }>(`/files/${id}`);
     return { ...response, data: response.data.file };
   }
 
   async delete(id: string): Promise<APIResponse<void>> {
+    this.requireSecretKey("delete");
     return this.httpClient.delete<void>(`/files/${id}`);
   }
 
