@@ -227,6 +227,30 @@ const objectUrl = URL.createObjectURL(imageBlob);
 
 ```
 
+## Use with AI Agents
+
+Get Pronto works natively with AI agents like Claude Code and Cursor via the [getpronto-mcp](https://www.npmjs.com/package/getpronto-mcp) server. Agents can upload, transform, and manage images using MCP tools.
+
+Add to your Claude Code MCP config (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "getpronto": {
+      "command": "npx",
+      "args": ["-y", "getpronto-mcp"],
+      "env": {
+        "GETPRONTO_API_KEY": "pronto_sk_..."
+      }
+    }
+  }
+}
+```
+
+Or omit the API key — the agent can generate a free ephemeral test key on demand (100MB storage, 7-day TTL, no signup required).
+
+See the [getpronto-mcp README](https://github.com/getpronto-io/getpronto-mcp) for full details.
+
 ## Error Handling
 
 The SDK uses custom error classes for better error handling:
