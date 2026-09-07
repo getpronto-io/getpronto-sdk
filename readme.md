@@ -193,8 +193,34 @@ The SDK supports the following image transformations:
 **Format Conversion**
 ```javascript
 // Convert to a specific format
-.format("webp")  // Options: "jpeg", "png", "webp", "avif", etc.
+.format("webp")  // "jpeg", "png", "webp", "avif", "gif", "tiff"
+
+// Or let Get Pronto choose an efficient, widely-supported format
+.format("auto")
+.quality("auto")  // picks a compression level per image
 ```
+
+#### Responsive Images
+
+`imageProps` builds `<img>` attributes with a `srcset`, so the browser downloads the
+size it needs. It runs locally, needs no API key, and makes no network call.
+
+```jsx
+import { imageProps } from "getpronto-sdk";
+
+const props = imageProps(file, {
+  widths: [400, 800, 1200],
+  sizes: "(max-width: 768px) 100vw, 50vw",
+  format: "auto",
+  q: "auto",
+});
+
+<img {...props} alt="Product photo" />
+```
+
+Pass a file object rather than a URL string and you also get `width` and `height`,
+which stop the page shifting as images load. Candidate widths larger than the
+original are dropped. Each width is a separate transform, so keep the list short.
 
 #### Example: Multiple Transformations
 

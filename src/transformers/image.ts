@@ -1,5 +1,15 @@
 import { HttpClient } from "../core/http-client";
-import { ImageFormat, ImageFit, TransformOptions } from "../types/image";
+import { buildTransformUrl } from "../core/build-transform-url";
+import { FileMetadata } from "../types/file";
+import {
+  IMAGE_FORMATS,
+  ImageFormat,
+  ImageFormatAuto,
+  ImageFit,
+  ImageQualityAuto,
+  TRANSFORM_BOUNDS,
+  TransformOptions,
+} from "../types/image";
 
 export class ImageTransformer {
   private options: TransformOptions = {};
@@ -17,15 +27,19 @@ export class ImageTransformer {
    */
   resize(width?: number, height?: number, fit: ImageFit = "cover"): this {
     if (width) {
-      if (width < 1 || width > 5000) {
-        throw new Error("Width must be between 1 and 5000 pixels");
+      if (width < TRANSFORM_BOUNDS.w.min || width > TRANSFORM_BOUNDS.w.max) {
+        throw new Error(
+          `Width must be between ${TRANSFORM_BOUNDS.w.min} and ${TRANSFORM_BOUNDS.w.max} pixels`
+        );
       }
       this.options.w = width;
     }
 
     if (height) {
-      if (height < 1 || height > 5000) {
-        throw new Error("Height must be between 1 and 5000 pixels");
+      if (height < TRANSFORM_BOUNDS.h.min || height > TRANSFORM_BOUNDS.h.max) {
+        throw new Error(
+          `Height must be between ${TRANSFORM_BOUNDS.h.min} and ${TRANSFORM_BOUNDS.h.max} pixels`
+        );
       }
       this.options.h = height;
     }
@@ -38,11 +52,16 @@ export class ImageTransformer {
   }
 
   /**
-   * Set the output quality (1-100)
+   * Set the output quality (1-100), or "auto" to let the API choose per image
    */
-  quality(value: number): this {
-    if (value < 1 || value > 100) {
-      throw new Error("Quality must be between 1 and 100");
+  quality(value: number | ImageQualityAuto): this {
+    if (
+      value !== "auto" &&
+      (value < TRANSFORM_BOUNDS.q.min || value > TRANSFORM_BOUNDS.q.max)
+    ) {
+      throw new Error(
+        `Quality must be between ${TRANSFORM_BOUNDS.q.min} and ${TRANSFORM_BOUNDS.q.max}, or "auto"`
+      );
     }
     this.options.q = value;
     return this;
@@ -53,8 +72,10 @@ export class ImageTransformer {
    * @param value - Blur radius (0.3-1000)
    */
   blur(value: number): this {
-    if (value < 0.3 || value > 1000) {
-      throw new Error("Blur value must be between 0.3 and 1000");
+    if (value < TRANSFORM_BOUNDS.blur.min || value > TRANSFORM_BOUNDS.blur.max) {
+      throw new Error(
+        `Blur value must be between ${TRANSFORM_BOUNDS.blur.min} and ${TRANSFORM_BOUNDS.blur.max}`
+      );
     }
     this.options.blur = value;
     return this;
@@ -81,8 +102,13 @@ export class ImageTransformer {
    * @param degrees - Rotation angle (-360 to 360)
    */
   rotate(degrees: number): this {
-    if (degrees < -360 || degrees > 360) {
-      throw new Error("Rotation must be between -360 and 360 degrees");
+    if (
+      degrees < TRANSFORM_BOUNDS.rot.min ||
+      degrees > TRANSFORM_BOUNDS.rot.max
+    ) {
+      throw new Error(
+        `Rotation must be between ${TRANSFORM_BOUNDS.rot.min} and ${TRANSFORM_BOUNDS.rot.max} degrees`
+      );
     }
     this.options.rot = degrees;
     return this;
@@ -125,24 +151,34 @@ export class ImageTransformer {
   }
 
   /**
-   * Set the output format
+   * Set the output format, or "auto" to let the API choose
    */
-  format(type: ImageFormat): this {
+  format(type: ImageFormat | ImageFormatAuto): this {
+    if (type !== "auto" && !IMAGE_FORMATS.includes(type)) {
+      throw new Error(
+        `Format must be one of ${IMAGE_FORMATS.join(", ")}, or "auto"`
+      );
+    }
     this.options.format = type;
     return this;
   }
 
   /**
-   * Generate the transformation URL by sending the options to the server
+   * Generate the transformation URL.
+   *
+   * Resolves the file's delivery URL, then builds the transform URL with the same
+   * serialiser `imageProps` uses, so there is one definition of how options become
+   * a query string. The round trip is only to turn a file id into a URL — nothing
+   * about the options needs the server.
+   *
    * @returns Promise resolving to the transformation URL
    */
   async toURL(): Promise<string> {
-    const response = await this.httpClient.post<{ url: string }>(
-      `/file/${this.fileId}/transform-url`,
-      this.options
+    const response = await this.httpClient.get<{ file: FileMetadata }>(
+      `/files/${this.fileId}`
     );
 
-    return response.data.url;
+    return buildTransformUrl(response.data.file.secureUrl, this.options);
   }
 
   /**

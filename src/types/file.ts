@@ -24,4 +24,7 @@ export interface FileMetadata {
   updated: string;
   rawUpdated: string;
   folderId: string | null;
+  /** Absent for non-image files and for rows uploaded before dimensions were stored. */
+  width?: number;
+  height?: number;
 }

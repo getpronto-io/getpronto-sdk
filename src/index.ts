@@ -13,3 +13,7 @@ export * from "./api/images";
 
 // Transformers
 export * from "./transformers/image";
+export * from "./transformers/image-props";
+
+// Local, credential-free URL building
+export * from "./core/build-transform-url";
